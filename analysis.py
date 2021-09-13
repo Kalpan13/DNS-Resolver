@@ -6,19 +6,19 @@ from dns_resolver import DNSResolver
 from tqdm import tqdm
 from statistics import mean
 
-def calculate_resolve_time(sites_list,n):
+def calculate_resolve_time(sites_list,n=10):
     df = pd.DataFrame()
     dnsresolver = DNSResolver()
     for site in tqdm(sites_list):
         resolve_time = []
         for i in range(0,n):
             start = time.time()
-            ans = dnsresolver.resolve_query(site)
+            ans, _ = dnsresolver.resolve_query(site)
             end = time.time()
-            resolve_time.append(end)
+            resolve_time.append(end-start)
         ans_dict = dict() 
-        ans_dict["site"] = site
-        ans_dict["execution_time"] = (end-start)
+        ans_dict["website"] = site
+        #ans_dict["execution_time"] = (end-start)
         ans_dict["IP"] = ans
         ans_dict["avg"] = mean(resolve_time)
         ans_dict["resolve_times_list"] = resolve_time

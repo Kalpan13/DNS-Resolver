@@ -43,7 +43,7 @@ class DNSResolver:
         while not ansFound:
             for server_ip in server_ips:
                 try:
-                    print(f"Trying : {domain} with IP : {server_ip}")
+                    #print(f"Trying : {domain} with IP : {server_ip}")
                     response = dns.query.udp(query, server_ip,timeout=self.timeout)
                     rcode = response.rcode()
                     if rcode != dns.rcode.NOERROR:
