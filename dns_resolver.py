@@ -1,4 +1,5 @@
 from datetime import datetime
+from distutils.util import execute
 import dns.query
 import dns.resolver
 import dns
@@ -13,10 +14,15 @@ logger.disable("dns_resolver") # To disable logs
 class DNSResolver:
     """Class to resolve DNS queries
     """
-    def __init__(self, use_stored_roots=True, timeout=0.5):
+    def __init__(self, use_stored_roots : bool = True, timeout : float = 0.5):
         self.use_stored_roots = use_stored_roots # If False, Root IPs will be scraped from website.
-        self.timeout = timeout
-
+        self.timeout = timeout  # Timeout for DNS queries in seconds
+        
+    def __process_ans(self, ans, query_type):
+        if query_type=='A':
+            return ans[0][0].address
+        else:
+            return [str(ele) for ele in ans[0]]
     def find_next_ips(self,additional_data):
         """Returns IPs extracted from Addition Data
 
@@ -33,7 +39,7 @@ class DNSResolver:
     def find_next_authoritative_ip(self,authoritative_data, current_index):
         for rrset in authoritative_data:
             authority = rrset[current_index].target
-            answer, answerFound = self.resolve_query(domain=str(authority))
+            answer, answerFound = self.resolve_query(str(authority),'A')
             if answerFound:
                 return answer,answerFound,current_index+1
             else:
@@ -53,31 +59,32 @@ class DNSResolver:
         ips = dict()
         for rrset in authoritative_data:
             for rr in rrset:
-                authority = rr.target
-                answer, answerFound = self.resolve_query(domain=str(authority))
+                #TODO : Handle SOA Case
+                try:
+                    domain = rr.mname
+                except Exception:
+                    domain = str(rr) 
+                answer, answerFound = self.resolve_query(domain)
                 if answerFound:
-                    ips[answer] = str(rr)
+                    ips[answer] = domain
                     if not resolveAll:
                         return ips
         return ips
                 
-    def resolve_query(self,domain):
+    def resolve_query(self, domain:str,query_type:str='A'):
         """Used to resolve the given DNS query
 
         Args:
             domain (str): hostname/website name
-
+            query_type (str) : Type of DNS query. default : 'A'
         Raises:
             Exception: 
-
         Returns:
             str : IP address of query
             boolean : True if IP is found
         """
         # Create a query
-        query = dns.message.make_query(domain, dns.rdatatype.A)
-        print("QUESTION SECTION")
-        print(f"{domain}      IN      A")
+        query = dns.message.make_query(domain,query_type)
         # Get the root server IPs
         if self.use_stored_roots:
             root_servers = ROOT_SERVERS
@@ -90,7 +97,7 @@ class DNSResolver:
             while not ansFound:
                 for server_ip in server_ips.keys():
                     try:
-                        print(f"Trying : {domain} with IP : {server_ip}")
+                        print(f"Query : {domain} with IP : {server_ip} Type : {query_type} Name : {server_ips[server_ip]}")
                         response = dns.query.udp(query, server_ip, timeout=self.timeout)
                         rcode = response.rcode()
                         if rcode != dns.rcode.NOERROR:
@@ -99,9 +106,9 @@ class DNSResolver:
                             else:
                                 raise Exception("Error %s" % (dns.rcode.to_text(rcode)))
                         if len(response.answer) > 0:
-                            ans = response.answer[0][0].address
+                            ans = response.answer
                             ansFound = True
-                            return ans, ansFound
+                            return self.__process_ans(ans, query_type), ansFound
                         elif len(response.additional) > 0:
                             server_ips = self.find_next_ips(response.additional)
                             break
@@ -114,30 +121,55 @@ class DNSResolver:
                         if isinstance(e, dns.exception.Timeout):
                             print(f"Query timed out for Q : {domain}, IP : {server_ip}")
                         else:
+                            print(e)
                             print("Server error for :"+server_ip)
         except Exception as e:
             return str(e), False
 
-def mydig(domain,q_type='A'):
+    def execute_query(self, authoratative_ns_ip:str, domain:str, query_type:str):
+
+        query = dns.message.make_query(domain,query_type)
+        response = dns.query.udp(query, authoratative_ns_ip, timeout=self.timeout)
+        rcode = response.rcode()
+        if rcode != dns.rcode.NOERROR:
+            if rcode == dns.rcode.NXDOMAIN:
+                raise Exception(f"{domain} does not exist.")
+            else:
+                raise Exception(f"Error {dns.rcode.to_text(rcode)}")
+
+def mydig(domain,query_type='A'):
+     
     dns_resolver = DNSResolver()
     today = datetime.today()
     day = today.strftime("%a")
     mon = today.strftime("%b")
     date = today.strftime("%d")
     year = today.strftime("%Y")
+    
     with open("output.txt","a+") as f:
         f.write("QUESTION SECTION\n")
         f.write(f"{domain}      IN      A\n")    
         start = time.time()
-        ans, _ = dns_resolver.resolve_query(domain)
+        authoratative_ns_ip, ansFound = dns_resolver.resolve_query(domain,query_type)
+        print(authoratative_ns_ip)
+        #dns_resolver.execute_query(authoratative_ns_ip, domain, query_type)
         end = time.time()
         f.write("ANSWER SECTION\n")
-        f.write(f"{domain}      IN      A   {ans}\n")
+        f.write(f"{domain}      IN      A   {authoratative_ns_ip}\n")
         f.write(f"Query time: {round(end-start,4)} seconds\n") 
         f.write(f"WHEN: {day} {mon} {date} {today.hour}:{today.minute}:{today.second} {year}\n")
     
 
-
+import sys
 if __name__=='__main__':
-    domain = "www.google.co.jp."
-    mydig(domain)
+    if len(sys.argv) < 2:
+        domain = 'amazon.com'
+    else:
+        domain = sys.argv[1]
+    if len(sys.argv) < 3:
+        query_type = 'NS'
+    else:
+        query_type = sys.argv[2]
+    
+    mydig(domain, query_type)
+    
