@@ -1,15 +1,9 @@
 from datetime import datetime
-from distutils.util import execute
 import dns.query
-import dns.resolver
 import dns
 from utils.root_servers_scrapper import get_root_servers
 from constants import ROOT_SERVERS
 import time
-from loguru import logger
-
-logger.disable("dns_resolver") # To disable logs
-#logger.disable("__main__") # To disable logs
 
 class DNSResolver:
     """Class to resolve DNS queries
@@ -20,10 +14,11 @@ class DNSResolver:
         
     def __process_ans(self, ans, query_type):
         if query_type=='A':
-            return ans[0][0].address
+            return [record[0].address for record in ans]
         else:
             return [str(ele) for ele in ans[0]]
-    def find_next_ips(self,additional_data):
+    
+    def find_ip_from_additional_data(self, additional_data : list):
         """Returns IPs extracted from Addition Data
 
         Args:
@@ -36,17 +31,8 @@ class DNSResolver:
         ips = {rrset[0].address:str(rrset.name) for rrset in additional_data if rrset.rdtype == 1}  # 1 : A Record
         return ips 
         
-    def find_next_authoritative_ip(self,authoritative_data, current_index):
-        for rrset in authoritative_data:
-            authority = rrset[current_index].target
-            answer, answerFound = self.resolve_query(str(authority),'A')
-            if answerFound:
-                return answer,answerFound,current_index+1
-            else:
-                return -1, answerFound,current_index+1
-
-    def find_authoritative_ip(self,authoritative_data, resolveAll=False):
-        """Returns dict of <IP, Hostname> from authoritative Data
+    def find_ip_from_authoritative_data(self, authoritative_data : list, resolveAll : bool = False):
+        """Returns dict of <IP, Hostname> from authoritative Data. 
 
         Args:
             authoritative_data (list): authoritative Data received from DNS Query Response
@@ -64,7 +50,7 @@ class DNSResolver:
                     domain = rr.mname
                 except Exception:
                     domain = str(rr) 
-                answer, answerFound = self.resolve_query(domain)
+                answer, answerFound = self.resolve_query(domain, "A")
                 if answerFound:
                     ips[answer] = domain
                     if not resolveAll:
@@ -80,7 +66,7 @@ class DNSResolver:
         Raises:
             Exception: 
         Returns:
-            str : IP address of query
+            str : answer of query
             boolean : True if IP is found
         """
         # Create a query
@@ -110,10 +96,10 @@ class DNSResolver:
                             ansFound = True
                             return self.__process_ans(ans, query_type), ansFound
                         elif len(response.additional) > 0:
-                            server_ips = self.find_next_ips(response.additional)
+                            server_ips = self.find_ip_from_additional_data(response.additional)
                             break
                         elif len(response.authority) > 0:
-                            server_ips = self.find_authoritative_ip(response.authority)
+                            server_ips = self.find_ip_from_authoritative_data(response.authority)
                             break    
                         else:
                             print("Issue with the DNS")    
@@ -126,18 +112,13 @@ class DNSResolver:
         except Exception as e:
             return str(e), False
 
-    def execute_query(self, authoratative_ns_ip:str, domain:str, query_type:str):
-
-        query = dns.message.make_query(domain,query_type)
-        response = dns.query.udp(query, authoratative_ns_ip, timeout=self.timeout)
-        rcode = response.rcode()
-        if rcode != dns.rcode.NOERROR:
-            if rcode == dns.rcode.NXDOMAIN:
-                raise Exception(f"{domain} does not exist.")
-            else:
-                raise Exception(f"Error {dns.rcode.to_text(rcode)}")
-
 def mydig(domain,query_type='A'):
+    """Replication of `dig` command. Writes output to output.txt
+
+    Args:
+        domain (str): website name (query)
+        query_type (str): type of query. Defaults to 'A'. Options : (A,MX,NS)
+    """
      
     dns_resolver = DNSResolver()
     today = datetime.today()
@@ -150,12 +131,15 @@ def mydig(domain,query_type='A'):
         f.write("QUESTION SECTION\n")
         f.write(f"{domain}      IN      A\n")    
         start = time.time()
-        authoratative_ns_ip, ansFound = dns_resolver.resolve_query(domain,query_type)
-        print(authoratative_ns_ip)
-        #dns_resolver.execute_query(authoratative_ns_ip, domain, query_type)
+        ans, ansFound = dns_resolver.resolve_query(domain,query_type)
+        if not ansFound:
+            print("No Answer Found for the given query")
+            ans = str(ans)
+        else:
+            print(ans)
         end = time.time()
         f.write("ANSWER SECTION\n")
-        f.write(f"{domain}      IN      A   {authoratative_ns_ip}\n")
+        f.write(f"{domain}      IN      A   {ans}\n")
         f.write(f"Query time: {round(end-start,4)} seconds\n") 
         f.write(f"WHEN: {day} {mon} {date} {today.hour}:{today.minute}:{today.second} {year}\n")
     
@@ -163,7 +147,7 @@ def mydig(domain,query_type='A'):
 import sys
 if __name__=='__main__':
     if len(sys.argv) < 2:
-        domain = 'amazon.com'
+        domain = 'verisigninc.com'
     else:
         domain = sys.argv[1]
     if len(sys.argv) < 3:

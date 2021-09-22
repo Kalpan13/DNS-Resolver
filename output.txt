@@ -121,3 +121,41 @@ ANSWER SECTION
 amazon.com      IN      A   ['5 amazon-smtp.amazon.com.']
 Query time: 0.1452 seconds
 WHEN: Sat Sep 18 16:33:8 2021
+QUESTION SECTION
+amazon.com      IN      A
+QUESTION SECTION
+amazon.com      IN      A
+ANSWER SECTION
+amazon.com      IN      A   ['pdns1.ultradns.net.', 'ns4.p31.dynect.net.', 'ns3.p31.dynect.net.', 'ns2.p31.dynect.net.', 'ns1.p31.dynect.net.', 'pdns6.ultradns.co.uk.']
+Query time: 0.1223 seconds
+WHEN: Mon Sep 20 11:41:12 2021
+QUESTION SECTION
+verisigninc.com      IN      A
+ANSWER SECTION
+verisigninc.com      IN      A   ['av2.nstld.com.', 'av4.nstld.com.', 'av1.nstld.com.', 'av3.nstld.com.']
+Query time: 0.0607 seconds
+WHEN: Tue Sep 21 22:24:35 2021
+QUESTION SECTION
+verisigninc.com      IN      A
+ANSWER SECTION
+verisigninc.com      IN      A   209.131.162.45
+Query time: 0.0525 seconds
+WHEN: Tue Sep 21 22:24:50 2021
+QUESTION SECTION
+verisigninc.com      IN      A
+ANSWER SECTION
+verisigninc.com      IN      A   ['209.131.162.45']
+Query time: 0.0548 seconds
+WHEN: Tue Sep 21 22:25:29 2021
+QUESTION SECTION
+verisigninc.com      IN      A
+ANSWER SECTION
+verisigninc.com      IN      A   ['av2.nstld.com.', 'av4.nstld.com.', 'av1.nstld.com.', 'av3.nstld.com.']
+Query time: 0.0542 seconds
+WHEN: Tue Sep 21 23:1:52 2021
+QUESTION SECTION
+verisigninc.com      IN      A
+ANSWER SECTION
+verisigninc.com      IN      A   ['10 mail2.verisign.com.', '10 mail4.verisign.com.', '10 mail6.verisign.com.', '10 mail1.verisign.com.', '10 mail3.verisign.com.', '10 mail5.verisign.com.']
+Query time: 0.0595 seconds
+WHEN: Tue Sep 21 23:1:59 2021

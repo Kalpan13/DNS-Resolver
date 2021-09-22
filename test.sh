@@ -13,8 +13,8 @@ do
   
    
   echo -n "$j "
-   dig $i  +noall +answer +stats | \
-  awk '$3 == "IN" && $4 == "A"{website=$1}/Query time:/{t=$4 " " $5}END{print website,t}' >> ans.txt
+   dig @8.8.8.8 $i  +noall +answer +stats | \
+  awk '$3 == "IN" && $4 == "A"{website=$1}/Query time:/{t=$4 " " $5}END{print website,t}' >> ans_google.txt
     sleep 10s
   done 
 done
